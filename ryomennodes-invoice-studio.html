@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RyomenNodes · Invoice Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --void:#080a0e;
+    --dark:#0d1117;
+    --dark2:#111620;
+    --dark3:#161d2a;
+    --dark4:#1c2333;
+    --dark5:#232b3e;
+    --line:rgba(255,255,255,.07);
+    --line-strong:rgba(255,255,255,.13);
+    --txt:#e8ecf4;
+    --txt-dim:#8892a8;
+    --txt-faint:#505a70;
+    --red:#e03030;
+    --red-bright:#ff4444;
+    --red-deep:#b01f1f;
+    --red-glow:rgba(224,48,48,.22);
+    --red-soft:#ff7070;
+    --paper:#ffffff;
+    --paper2:#f7f8fb;
+    --paper-line:#e4e6ef;
+    --ink:#0e111a;
+    --ink-soft:#4a5168;
+    --ok:#3de89a;
+    --r:13px;
+    --r-sm:9px;
+    --font-d:'Rajdhani',system-ui,sans-serif;
+    --font-b:'Inter',system-ui,sans-serif;
+    --font-m:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font-b);color:var(--txt);background:var(--void);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+  /* ── Background ── */
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .bg::before{
+    content:"";position:absolute;inset:-20%;
+    background:
+      radial-gradient(600px 400px at 10% 5%, rgba(224,48,48,.08), transparent 55%),
+      radial-gradient(700px 500px at 90% 95%, rgba(176,31,31,.07), transparent 55%),
+      radial-gradient(circle at 50% 50%, var(--dark), var(--void) 72%);
+  }
+  .bg .grid-lines{
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 30%,transparent 100%);
+  }
+  .bg .hex-glow{
+    position:absolute;top:50%;left:50%;
+    width:900px;height:900px;margin:-450px 0 0 -450px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(224,48,48,.04) 0%,transparent 70%);
+    animation:pulse-glow 8s ease-in-out infinite;
+  }
+  @keyframes pulse-glow{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+
+  /* ── Topbar ── */
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;gap:16px;
+    padding:12px 20px;
+    background:linear-gradient(180deg,rgba(8,10,14,.95),rgba(8,10,14,.8));
+    backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .brand-logo{width:38px;height:38px;flex:0 0 auto;object-fit:contain;filter:drop-shadow(0 0 10px rgba(224,48,48,.5))}
+  .brand-txt{display:flex;flex-direction:column;line-height:1.05;min-width:0}
+  .brand-txt .b1{font-family:var(--font-d);font-weight:700;font-size:20px;letter-spacing:.04em;color:var(--txt)}
+  .brand-txt .b1 span{color:var(--red-bright)}
+  .brand-txt .b2{font-size:10.5px;color:var(--txt-faint);letter-spacing:.06em;margin-top:2px;text-transform:uppercase;white-space:nowrap}
+  .spacer{flex:1 1 auto}
+
+  .cur-field{position:relative;display:flex;align-items:center}
+  .cur-field svg{position:absolute;right:11px;pointer-events:none;opacity:.5}
+  select.cur{
+    appearance:none;-webkit-appearance:none;
+    font-family:var(--font-m);font-size:12.5px;font-weight:500;color:var(--txt);
+    background:var(--dark4);border:1px solid var(--line-strong);
+    border-radius:999px;padding:8px 34px 8px 15px;cursor:pointer;
+    transition:border-color .2s,box-shadow .2s;
+  }
+  select.cur:hover{border-color:rgba(224,48,48,.5)}
+  select.cur:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px var(--red-glow)}
+  select.cur option{background:var(--dark3);color:var(--txt)}
+
+  .btn{
+    font-family:var(--font-b);font-weight:600;font-size:13px;
+    border:1px solid var(--line-strong);background:var(--dark4);color:var(--txt);
+    padding:9px 15px;border-radius:999px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;
+    transition:transform .15s,border-color .2s,background .2s,box-shadow .2s;
+    white-space:nowrap;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn svg{width:15px;height:15px}
+  .btn.ghost:hover{background:var(--dark5)}
+  .btn.primary{
+    background:linear-gradient(160deg,var(--red-bright),var(--red-deep));
+    color:#fff;border-color:transparent;
+    box-shadow:0 6px 20px rgba(224,48,48,.32),inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .btn.primary:hover{box-shadow:0 10px 28px rgba(224,48,48,.48),inset 0 1px 0 rgba(255,255,255,.18)}
+  .btn.primary[disabled]{opacity:.6;cursor:progress;transform:none}
+  .btn .spin-i{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ── Workspace ── */
+  .workspace{position:relative;z-index:10;display:grid;grid-template-columns:minmax(370px,430px) 1fr;height:calc(100vh - 69px)}
+  .console{overflow-y:auto;padding:20px 20px 60px;border-right:1px solid var(--line)}
+  .stage{overflow-y:auto;padding:32px 28px 80px;display:flex;justify-content:center}
+
+  .console::-webkit-scrollbar,.stage::-webkit-scrollbar{width:9px}
+  .console::-webkit-scrollbar-thumb,.stage::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+  .console::-webkit-scrollbar-thumb:hover,.stage::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15);background-clip:content-box}
+
+  /* ── Panels ── */
+  .panel{
+    background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,0));
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:17px 17px 19px;margin-bottom:14px;
+    opacity:0;transform:translateY(10px);
+    animation:rise .5s cubic-bezier(.2,.7,.3,1) forwards;
+  }
+  .panel:nth-child(1){animation-delay:.03s}.panel:nth-child(2){animation-delay:.07s}
+  .panel:nth-child(3){animation-delay:.12s}.panel:nth-child(4){animation-delay:.18s}
+  .panel:nth-child(5){animation-delay:.24s}.panel:nth-child(6){animation-delay:.30s}
+  .panel:nth-child(7){animation-delay:.36s}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+
+  .eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 13px;font-family:var(--font-m);font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--txt-dim)}
+  .eyebrow .dot{width:5px;height:5px;border-radius:50%;background:var(--red-bright);box-shadow:0 0 7px rgba(255,68,68,.9)}
+
+  .grid{display:grid;gap:11px}
+  .grid.g2{grid-template-columns:1fr 1fr}
+  .grid.g3{grid-template-columns:1fr 1fr 1fr}
+  .fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .fld.full{grid-column:1/-1}
+  .fld > label{font-size:11px;color:var(--txt-faint);font-weight:600;letter-spacing:.03em}
+  .input,textarea.input{
+    font-family:var(--font-b);font-size:13.5px;color:var(--txt);
+    background:var(--dark3);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:10px 12px;width:100%;
+    transition:border-color .18s,box-shadow .18s,background .18s;
+  }
+  textarea.input{resize:vertical;min-height:58px;line-height:1.5}
+  .input::placeholder,textarea.input::placeholder{color:var(--txt-faint);opacity:.7}
+  .input:focus,textarea.input:focus{outline:none;border-color:var(--red);background:var(--dark4);box-shadow:0 0 0 3px var(--red-glow)}
+  .input.mono{font-family:var(--font-m)}
+  input[type=date].input{color-scheme:dark}
+
+  /* ── Plan picker ── */
+  .plan-picker{margin-bottom:12px}
+  .plan-picker label{font-size:11px;color:var(--txt-faint);font-weight:600;letter-spacing:.03em;display:block;margin-bottom:6px}
+  .plan-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .pcat{
+    font-family:var(--font-m);font-size:10.5px;font-weight:600;letter-spacing:.08em;
+    padding:5px 12px;border-radius:999px;border:1px solid var(--line-strong);
+    background:var(--dark4);color:var(--txt-dim);cursor:pointer;
+    transition:.18s;text-transform:uppercase;
+  }
+  .pcat:hover{border-color:rgba(224,48,48,.4);color:var(--txt)}
+  .pcat.active{background:var(--red-deep);border-color:var(--red);color:#fff;box-shadow:0 4px 12px rgba(224,48,48,.3)}
+  select.plan-sel{
+    appearance:none;-webkit-appearance:none;
+    width:100%;font-family:var(--font-b);font-size:13px;color:var(--txt);
+    background:var(--dark3);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:10px 12px;cursor:pointer;
+    transition:border-color .18s;
+  }
+  select.plan-sel:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px var(--red-glow)}
+  select.plan-sel option{background:var(--dark3);color:var(--txt)}
+  .plan-add{
+    margin-top:8px;width:100%;background:rgba(224,48,48,.1);border:1px solid rgba(224,48,48,.3);
+    color:var(--red-soft);font-family:var(--font-b);font-size:13px;font-weight:600;
+    padding:10px;border-radius:var(--r-sm);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:.18s;
+  }
+  .plan-add:hover{background:rgba(224,48,48,.18);border-color:var(--red-bright);color:#fff}
+
+  /* ── Line items ── */
+  .rows{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+  .row{border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(255,255,255,.015);padding:11px;display:grid;grid-template-columns:1fr;gap:9px;position:relative;animation:rowin .32s cubic-bezier(.2,.7,.3,1)}
+  @keyframes rowin{from{opacity:0;transform:translateY(-5px) scale(.99)}to{opacity:1;transform:none}}
+  .row.removing{animation:rowout .25s ease forwards}
+  @keyframes rowout{to{opacity:0;transform:translateX(-10px);max-height:0;padding:0;margin:0}}
+  .row .qr{display:grid;grid-template-columns:84px 1fr 36px;gap:7px;align-items:end}
+  .row .x{border:1px solid var(--line);background:var(--dark4);color:var(--txt-dim);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.18s}
+  .row .x:hover{color:#ff6b6b;border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.1)}
+  .row .mini{font-size:10px;color:var(--txt-faint);font-weight:600;margin-bottom:4px;display:block}
+  .addline{width:100%;border:1px dashed var(--line-strong);background:transparent;color:var(--txt-dim);padding:10px;border-radius:var(--r-sm);cursor:pointer;font-family:var(--font-b);font-weight:600;font-size:12.5px;transition:.18s;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:4px}
+  .addline:hover{border-color:var(--red);color:var(--red-soft);background:rgba(224,48,48,.06)}
+
+  /* ── Invoice sheet ── */
+  .sheet-wrap{width:100%;max-width:794px;opacity:0;transform:translateY(14px) scale(.993);animation:rise .65s .15s cubic-bezier(.2,.7,.3,1) forwards}
+  .sheet{width:100%;background:var(--paper);color:var(--ink);border-radius:16px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.04);font-family:var(--font-b);position:relative}
+  .sheet-top{height:5px;background:linear-gradient(90deg,var(--red-deep),var(--red),var(--red-bright),var(--red))}
+  .sheet-pad{padding:44px 48px 38px;position:relative}
+
+  /* watermark grid on invoice */
+  .doc-grid{position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:.035}
+  .doc-grid::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(14,17,26,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(14,17,26,.8) 1px,transparent 1px);background-size:32px 32px}
+
+  .doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;position:relative}
+  .doc-brand{display:flex;align-items:center;gap:11px}
+  .doc-brand .dlogo{width:40px;height:40px;object-fit:contain}
+  .doc-brand .bt .n{font-family:var(--font-d);font-weight:700;font-size:22px;letter-spacing:.05em;color:var(--ink)}
+  .doc-brand .bt .n span{color:var(--red-deep)}
+  .doc-brand .bt .t{font-size:10.5px;color:var(--ink-soft);margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
+  .doc-title{text-align:right}
+  .doc-title .lbl{font-family:var(--font-d);font-weight:700;font-size:32px;letter-spacing:.18em;color:var(--ink)}
+  .doc-title .num{font-family:var(--font-m);font-size:12.5px;color:var(--ink-soft);margin-top:5px}
+  .doc-dates{margin-top:9px;display:flex;gap:16px;justify-content:flex-end;font-size:11px}
+  .doc-dates .d span{display:block;color:var(--ink-soft);font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
+  .doc-dates .d b{font-family:var(--font-m);font-weight:500;color:var(--ink);font-size:12px}
+
+  .rule{height:1px;background:var(--paper-line);margin:24px 0}
+  .rule.red{background:linear-gradient(90deg,var(--red-deep),transparent)}
+
+  .parties{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .party .h{font-family:var(--font-m);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--red-deep);font-weight:600;margin-bottom:7px}
+  .party .nm{font-weight:700;font-size:15px;color:var(--ink);margin-bottom:3px}
+  .party .ln{font-size:12px;color:var(--ink-soft);line-height:1.65;white-space:pre-line}
+  .party .meta{font-size:11.5px;color:var(--ink-soft);margin-top:5px;line-height:1.65}
+  .party .meta b{color:var(--ink);font-weight:600}
+
+  table.items{width:100%;border-collapse:collapse;margin-top:6px}
+  table.items thead th{font-family:var(--font-m);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;text-align:left;padding:0 9px 8px;border-bottom:2px solid var(--ink)}
+  table.items thead th.num{text-align:right}
+  table.items tbody td{padding:12px 9px;border-bottom:1px solid var(--paper-line);vertical-align:top;font-size:12.5px}
+  table.items tbody td.num{text-align:right;font-family:var(--font-m);color:var(--ink);white-space:nowrap}
+  table.items .it-name{font-weight:600;color:var(--ink)}
+  table.items .it-tag{display:inline-block;font-family:var(--font-m);font-size:9px;letter-spacing:.08em;padding:2px 7px;border-radius:99px;background:rgba(176,31,31,.1);color:var(--red-deep);border:1px solid rgba(176,31,31,.25);margin-left:6px;vertical-align:middle;text-transform:uppercase}
+  table.items .it-desc{display:block;font-weight:400;color:var(--ink-soft);font-size:11px;margin-top:3px}
+
+  .totals{position:relative;display:flex;justify-content:flex-end;margin-top:22px}
+  .totals .box{width:290px;max-width:100%}
+  .trow{display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px;color:var(--ink-soft)}
+  .trow b{font-family:var(--font-m);font-weight:500;color:var(--ink)}
+  .trow.grand{margin-top:8px;padding:13px 15px;border-radius:9px;background:var(--ink);color:#fff;align-items:center}
+  .trow.grand .g-l{font-family:var(--font-d);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#9aa0bd}
+  .trow.grand .g-v{font-family:var(--font-m);font-weight:600;font-size:19px;color:var(--red-soft)}
+  .trow.grand.is-paid .g-v{color:var(--ok)}
+  .cur-note{text-align:right;font-size:10px;color:var(--ink-soft);margin-top:7px;font-family:var(--font-m);letter-spacing:.04em}
+  .pay-line{font-size:10.5px;color:var(--ink-soft);font-family:var(--font-m);letter-spacing:.03em;margin-top:9px;padding-top:9px;border-top:1px dashed var(--paper-line);text-align:right}
+
+  .notes{margin-top:24px}
+  .notes .h{font-family:var(--font-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red-deep);font-weight:600;margin-bottom:5px}
+  .notes .body{font-size:11.5px;color:var(--ink-soft);line-height:1.65;white-space:pre-line}
+  .doc-foot{margin-top:28px;padding-top:14px;border-top:1px solid var(--paper-line);display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--ink-soft)}
+  .doc-foot .ty{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--ink);letter-spacing:.05em}
+  .doc-foot a{color:var(--red-deep);text-decoration:none}
+
+  /* ── Badge ── */
+  .badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-family:var(--font-m);font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid}
+  .badge .bd{width:5px;height:5px;border-radius:50%;background:currentColor}
+  .badge.due{color:#c07820;border-color:rgba(192,120,32,.4);background:rgba(224,160,48,.1)}
+  .badge.paid{color:#1a7a50;border-color:rgba(26,122,80,.4);background:rgba(26,122,80,.1)}
+  .badge.partial{color:#a06020;border-color:rgba(160,96,32,.4);background:rgba(200,130,48,.1)}
+
+  /* ── Stamp ── */
+  .stamp{position:absolute;left:6px;top:50%;transform:translateY(-50%) rotate(-12deg);border:3px double currentColor;border-radius:11px;padding:8px 20px 6px;text-align:center;pointer-events:none;opacity:.9;z-index:6;background:rgba(255,255,255,.55)}
+  .stamp .big{font-family:var(--font-d);font-weight:700;font-size:30px;letter-spacing:.16em;line-height:1}
+  .stamp .sub{font-family:var(--font-m);font-size:8.5px;letter-spacing:.18em;margin-top:4px;font-weight:500;opacity:.85}
+  .stamp.paid{color:#1a7a50}
+  .stamp.partial{color:#c07820}
+
+  /* ── Segment ── */
+  .seg{position:relative;display:flex;background:var(--dark3);border:1px solid var(--line);border-radius:999px;padding:4px;gap:2px;width:100%}
+  .seg button{flex:1 1 0;border:none;background:transparent;color:var(--txt-dim);font-family:var(--font-b);font-weight:600;font-size:12px;padding:8px 6px;border-radius:999px;cursor:pointer;position:relative;z-index:2;white-space:nowrap;transition:color .22s}
+  .seg button[aria-pressed="true"]{color:#fff}
+  .seg .glider{position:absolute;left:0;top:4px;bottom:4px;width:0;border-radius:999px;z-index:1;background:linear-gradient(160deg,var(--red-bright),var(--red-deep));box-shadow:0 4px 14px rgba(224,48,48,.35),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .3s cubic-bezier(.2,.7,.3,1),width .3s cubic-bezier(.2,.7,.3,1)}
+  .pay-extra{overflow:hidden;max-height:0;opacity:0;transition:max-height .4s cubic-bezier(.2,.7,.3,1),opacity .32s,margin-top .32s}
+  .pay-extra.open{max-height:340px;opacity:1;margin-top:14px}
+
+  /* ── Toast ── */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--dark4);border:1px solid var(--line-strong);color:var(--txt);padding:10px 17px;border-radius:999px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;z-index:60;opacity:0;pointer-events:none;transition:transform .35s cubic-bezier(.2,.7,.3,1),opacity .35s;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast .tick{width:17px;height:17px;border-radius:50%;background:var(--ok);color:#04201a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  .toast.warn .tick{background:var(--red)}
+
+  /* ── Overlay ── */
+  .overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(8,10,14,.78);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .overlay .card{display:flex;flex-direction:column;align-items:center;gap:13px;text-align:center;padding:28px 38px;border:1px solid var(--line-strong);border-radius:16px;background:var(--dark3);box-shadow:0 30px 70px rgba(0,0,0,.5)}
+  .overlay .ring2{width:44px;height:44px;border:3px solid rgba(224,48,48,.2);border-top-color:var(--red-bright);border-radius:50%;animation:rot .8s linear infinite}
+  .overlay .ot{font-family:var(--font-d);font-weight:600;font-size:15px;color:var(--txt);letter-spacing:.05em}
+  .overlay .os{font-size:11.5px;color:var(--txt-dim)}
+
+  /* ── Hint ── */
+  .hint{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(180deg,rgba(224,48,48,.08),rgba(224,48,48,.02));border:1px solid rgba(224,48,48,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.55;color:var(--txt-dim);animation:rise .45s cubic-bezier(.2,.7,.3,1) both}
+  .hint b{color:var(--red-soft);font-weight:600}
+  .hint svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--red)}
+
+  /* ── Responsive ── */
+  @media(max-width:960px){.workspace{display:block;height:auto}.console{border-right:none;border-bottom:1px solid var(--line);padding:16px 14px 28px}.stage{padding:22px 12px 60px}.topbar{flex-wrap:wrap;gap:9px}.brand-txt .b2{display:none}}
+  @media(max-width:500px){.grid.g2,.grid.g3{grid-template-columns:1fr}.sheet-pad{padding:28px 20px 26px}.doc-head{flex-direction:column;gap:16px}.doc-title{text-align:left}.doc-dates{justify-content:flex-start}.parties{grid-template-columns:1fr;gap:18px}.doc-title .lbl{font-size:26px}}
+  @media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}.panel,.sheet-wrap{opacity:1;transform:none}}
+  @media print{body{background:#fff}.bg,.topbar,.console,.addline,.toast,.overlay{display:none!important}.workspace{display:block;height:auto}.stage{padding:0;overflow:visible}.sheet-wrap{max-width:none;animation:none;opacity:1;transform:none}.sheet{box-shadow:none;border-radius:0}}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="bg"><div class="grid-lines"></div><div class="hex-glow"></div></div>
+
+<!-- ── Topbar ── -->
+<header class="topbar">
+  <div class="brand">
+    <img class="brand-logo" src="https://i.ibb.co/5X1mrSFp/db1692698da5690cdf9a04afca81dbc7.webp" alt="RyomenNodes logo">
+    <div class="brand-txt">
+      <div class="b1">Ryomen<span>Nodes</span></div>
+      <div class="b2">Invoice Studio · Hosting & Infrastructure</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="cur-field">
+    <select class="cur" id="currency" aria-label="Invoice currency"></select>
+    <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+  </div>
+  <button class="btn ghost" id="printBtn">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    Print
+  </button>
+  <button class="btn primary" id="pdfBtn">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span class="lbl">Download PDF</span>
+  </button>
+</header>
+
+<!-- ── Workspace ── -->
+<div class="workspace">
+  <section class="console" aria-label="Invoice editor">
+
+    <div class="hint">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      <span>Pick a plan below to add it instantly, or fill in any details. The invoice on the right updates live. Hit <b>Download PDF</b> when ready.</span>
+    </div>
+
+    <!-- From -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>From — RyomenNodes</div>
+      <div class="grid g2">
+        <div class="fld full"><label>Business name</label><input class="input" id="f_name" value="RyomenNodes"></div>
+        <div class="fld full"><label>Tagline</label><input class="input" id="f_tag" value="Discord Bot & Minecraft Server Hosting · India"></div>
+        <div class="fld full"><label>Address</label><textarea class="input" id="f_addr" placeholder="Address">India Datacenter&#10;Mumbai / Noida / Delhi Node</textarea></div>
+        <div class="fld"><label>Email</label><input class="input" id="f_email" value="support@ryomennodes.in"></div>
+        <div class="fld"><label>Phone</label><input class="input" id="f_phone" placeholder="+91 ..."></div>
+        <div class="fld"><label>Website</label><input class="input" id="f_web" value="ryomennodes.in"></div>
+        <div class="fld"><label>GSTIN</label><input class="input mono" id="f_tax" placeholder="GSTIN (optional)"></div>
+      </div>
+    </div>
+
+    <!-- Bill to -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Bill to — customer</div>
+      <div class="grid g2">
+        <div class="fld full"><label>Customer / Discord username</label><input class="input" id="c_name" placeholder="Username#0000 or Full Name"></div>
+        <div class="fld full"><label>Address (optional)</label><textarea class="input" id="c_addr" placeholder="Billing address (optional)"></textarea></div>
+        <div class="fld"><label>Email</label><input class="input" id="c_email" placeholder="customer@email.com"></div>
+        <div class="fld"><label>Discord ID (optional)</label><input class="input mono" id="c_tax" placeholder="123456789012345678"></div>
+      </div>
+    </div>
+
+    <!-- Invoice details -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Invoice details</div>
+      <div class="grid g3">
+        <div class="fld full"><label>Invoice number</label><input class="input mono" id="m_num"></div>
+        <div class="fld"><label>Issue date</label><input type="date" class="input" id="m_issue"></div>
+        <div class="fld"><label>Due / renewal date</label><input type="date" class="input" id="m_due"></div>
+        <div class="fld"><label>Order / Ticket ref</label><input class="input mono" id="m_po" placeholder="Ticket #"></div>
+      </div>
+    </div>
+
+    <!-- Plan picker -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Quick plan add</div>
+      <div class="plan-picker">
+        <label>Select category</label>
+        <div class="plan-cats" id="planCats"></div>
+        <select class="plan-sel" id="planSel"></select>
+        <button class="plan-add" id="planAddBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          Add plan to invoice
+        </button>
+      </div>
+    </div>
+
+    <!-- Line items -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Services &amp; items</div>
+      <div class="rows" id="rows"></div>
+      <button class="addline" id="addRow">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Add custom line item
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Summary &amp; notes</div>
+      <div class="grid g3">
+        <div class="fld"><label>Discount %</label><input class="input mono" id="s_disc" inputmode="decimal" value="0"></div>
+        <div class="fld"><label>Tax label</label><input class="input" id="s_taxlabel" value="GST"></div>
+        <div class="fld"><label>Tax %</label><input class="input mono" id="s_tax" inputmode="decimal" value="0"></div>
+        <div class="fld full"><label>Setup / handling fee (flat)</label><input class="input mono" id="s_ship" inputmode="decimal" value="0"></div>
+        <div class="fld full"><label>Notes / payment terms</label><textarea class="input" id="s_notes">Payment due before service activation. Transfer via UPI / Bank to RyomenNodes.&#10;Please quote the invoice number and your Discord username with your payment.&#10;&#10;🛡️ DDoS Protected  ⚡ Instant Setup  💎 NVMe SSD  🇮🇳 India Node</textarea></div>
+      </div>
+    </div>
+
+    <!-- Payment status -->
+    <div class="panel">
+      <div class="eyebrow"><span class="dot"></span>Payment status</div>
+      <div class="seg" id="statusSeg" role="group" aria-label="Payment status">
+        <span class="glider" id="segGlider"></span>
+        <button type="button" data-status="due" aria-pressed="true">Due</button>
+        <button type="button" data-status="paid" aria-pressed="false">Paid</button>
+        <button type="button" data-status="partial" aria-pressed="false">Partially paid</button>
+      </div>
+      <div class="pay-extra" id="payExtra">
+        <div class="grid g2">
+          <div class="fld"><label>Payment date</label><input type="date" class="input" id="p_date"></div>
+          <div class="fld"><label>Method</label><input class="input" id="p_method" list="methods" placeholder="UPI / Bank transfer"></div>
+          <datalist id="methods">
+            <option>UPI</option><option>Bank transfer</option><option>Razorpay</option>
+            <option>Net banking</option><option>Credit card</option><option>Cash</option>
+          </datalist>
+          <div class="fld full"><label>Reference / UPI txn ID</label><input class="input mono" id="p_ref" placeholder="optional"></div>
+          <div class="fld full hide" id="paidAmtFld"><label>Amount paid (for partial)</label><input class="input mono" id="p_amount" inputmode="decimal" value="0"></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── Stage ── -->
+  <section class="stage" aria-label="Invoice preview">
+    <div class="sheet-wrap">
+      <article class="sheet" id="invoice">
+        <div class="sheet-top"></div>
+        <div class="sheet-pad">
+          <div class="doc-grid"></div>
+
+          <div class="doc-head">
+            <div class="doc-brand">
+              <img class="dlogo" src="https://i.ibb.co/5X1mrSFp/db1692698da5690cdf9a04afca81dbc7.webp" alt="RyomenNodes">
+              <div class="bt">
+                <div class="n" id="o_name">Ryomen<span>Nodes</span></div>
+                <div class="t" id="o_tag">Discord Bot &amp; Minecraft Hosting · India</div>
+              </div>
+            </div>
+            <div class="doc-title">
+              <div class="lbl">INVOICE</div>
+              <div class="num" id="o_num">#RYO-2026-0000</div>
+              <span class="badge due" id="o_badge"><span class="bd"></span><span id="o_badgeT">Due</span></span>
+              <div class="doc-dates">
+                <div class="d"><span>Issued</span><b id="o_issue">—</b></div>
+                <div class="d"><span>Due</span><b id="o_due">—</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rule red"></div>
+
+          <div class="parties">
+            <div class="party">
+              <div class="h">Billed to</div>
+              <div class="nm" id="o_cname">—</div>
+              <div class="ln" id="o_caddr"></div>
+              <div class="meta" id="o_cmeta"></div>
+            </div>
+            <div class="party">
+              <div class="h">From</div>
+              <div class="nm" id="o_fname">RyomenNodes</div>
+              <div class="ln" id="o_faddr"></div>
+              <div class="meta" id="o_fmeta"></div>
+            </div>
+          </div>
+
+          <div class="rule"></div>
+
+          <table class="items">
+            <thead><tr>
+              <th>Service / Description</th>
+              <th class="num">Qty</th>
+              <th class="num">Unit price</th>
+              <th class="num">Amount</th>
+            </tr></thead>
+            <tbody id="o_rows"></tbody>
+          </table>
+
+          <div class="totals">
+            <div class="stamp paid hide" id="o_stamp"><div class="big" id="o_stampBig">PAID</div><div class="sub" id="o_stampSub"></div></div>
+            <div class="box">
+              <div class="trow"><span>Subtotal</span><b id="o_sub">—</b></div>
+              <div class="trow hide" id="o_discRow"><span id="o_discL">Discount</span><b id="o_disc">—</b></div>
+              <div class="trow hide" id="o_taxRow"><span id="o_taxL">Tax</span><b id="o_tax">—</b></div>
+              <div class="trow hide" id="o_shipRow"><span>Setup fee</span><b id="o_ship">—</b></div>
+              <div class="trow hide" id="o_paidRow"><span>Amount paid</span><b id="o_paid">—</b></div>
+              <div class="trow grand" id="o_grand"><span class="g-l" id="o_grandL">Total due</span><span class="g-v" id="o_total">—</span></div>
+              <div class="cur-note" id="o_curnote"></div>
+              <div class="pay-line hide" id="o_payline"></div>
+            </div>
+          </div>
+
+          <div class="notes" id="o_notesWrap">
+            <div class="h">Notes &amp; Payment Terms</div>
+            <div class="body" id="o_notes"></div>
+          </div>
+
+          <div class="doc-foot">
+            <span class="ty">Thank you for choosing RyomenNodes!</span>
+            <span><a id="o_web" href="#">ryomennodes.in</a></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="card">
+    <div class="ring2"></div>
+    <div class="ot">Generating Invoice PDF</div>
+    <div class="os">This only takes a moment…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="tick">✓</span><span id="toastMsg">Done</span></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ── Plan data ── */
+const PLANS = {
+  "Bot Host":[
+    {name:"Bot Host — Starter Plan",desc:"512 MiB DDR4 3200MHz · 0.5 vCore 50% (3.70GHz) · 5 GiB NVMe SSD Gen-4",price:49,tag:"Bot Host"},
+    {name:"Bot Host — Basic Plan",desc:"1 GiB DDR4 3200MHz · 1.00 vCore 100% (3.70GHz) · 10 GiB NVMe SSD Gen-4",price:99,tag:"Bot Host"},
+    {name:"Bot Host — Professional Plan",desc:"2 GiB DDR4 3200MHz · 1.25 vCore 125% (3.70GHz) · 15 GiB NVMe SSD Gen-4",price:149,tag:"Bot Host"},
+  ],
+  "Budget Hosting":[
+    {name:"Budget — Starter",desc:"2GB RAM · 1 vCPU · 5GB SSD · India Node · DDoS Protected · NVMe SSD",price:80,tag:"Budget"},
+    {name:"Budget — Basic",desc:"4GB RAM · 2 vCPU · 10GB SSD · India Node · DDoS Protected · NVMe SSD",price:140,tag:"Budget"},
+    {name:"Budget — Advanced",desc:"6GB RAM · 3 vCPU · 15GB SSD · India Node · DDoS Protected · NVMe SSD",price:190,tag:"Budget"},
+    {name:"Budget — Pro",desc:"8GB RAM · 4 vCPU · 20GB SSD · India Node · DDoS Protected · NVMe SSD",price:280,tag:"Budget"},
+    {name:"Budget — Elite",desc:"10GB RAM · 5 vCPU · 25GB SSD · India Node · DDoS Protected · NVMe SSD",price:360,tag:"Budget"},
+  ],
+  "Ryomen Special":[
+    {name:"Special — Blaze Plan",desc:"2GB RAM · 1 vCPU · 5GB SSD · India Node · Intel Powered",price:60,tag:"Special"},
+    {name:"Special — Thunder Plan",desc:"4GB RAM · 2 vCPU · 10GB SSD · India Node · Intel Powered",price:170,tag:"Special"},
+    {name:"Special — Phantom Plan",desc:"6GB RAM · 3 vCPU · 15GB SSD · India Node · Intel Powered",price:180,tag:"Special"},
+    {name:"Special — Titan Plan",desc:"8GB RAM · 4 vCPU · 20GB SSD · India Node · Intel Powered",price:220,tag:"Special"},
+  ],
+  "Standard Hosting":[
+    {name:"Standard — Dirt Plan",desc:"4GB RAM · 100% CPU · 10GB SSD · 5x Backups · 5x Ports · 5x Databases · Mumbai Node",price:160,tag:"Standard"},
+    {name:"Standard — Iron Plan",desc:"8GB RAM · 200% CPU · 20GB SSD · 8x Backups · 8x Ports · 8x Databases · Mumbai Node",price:320,tag:"Standard"},
+    {name:"Standard — Gold Plan",desc:"12GB RAM · 350% CPU · 30GB SSD · 10x Backups · 10x Ports · 10x Databases · Mumbai Node",price:420,tag:"Standard"},
+    {name:"Standard — Diamond Plan",desc:"16GB RAM · 400% CPU · 40GB SSD · 10x Backups · 10x Ports · 10x Databases · Mumbai Node",price:799,tag:"Standard"},
+    {name:"Standard — Emerald Plan",desc:"32GB RAM · 500% CPU · 50GB SSD · 10x Backups · 10x Ports · 10x Databases · Mumbai Node",price:899,tag:"Standard"},
+    {name:"Standard — Netherite Plan",desc:"48GB RAM · 600% CPU · 60GB SSD · 10x Backups · 10x Ports · 10x Databases · Mumbai Node",price:1399,tag:"Standard"},
+  ],
+  "Performance Hosting":[
+    {name:"Performance — Starter",desc:"2GB RAM · 2 vCPU · 10GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:170,tag:"Performance"},
+    {name:"Performance — Basic",desc:"4GB RAM · 3 vCPU · 15GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:300,tag:"Performance"},
+    {name:"Performance — Standard",desc:"6GB RAM · 3 vCPU · 20GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:350,tag:"Performance"},
+    {name:"Performance — Advanced",desc:"8GB RAM · 4 vCPU · 25GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:550,tag:"Performance"},
+    {name:"Performance — Pro",desc:"10GB RAM · 4 vCPU · 30GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:700,tag:"Performance"},
+    {name:"Performance — Elite",desc:"12GB RAM · 4 vCPU · 35GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:770,tag:"Performance"},
+    {name:"Performance — Ultimate",desc:"16GB RAM · 5 vCPU · 50GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:1529,tag:"Performance"},
+    {name:"Performance — Titan",desc:"32GB RAM · 6 vCPU · 80GB SSD · Ryzen Powered · NVMe SSD · DDoS Protected · India Node",price:2629,tag:"Performance"},
+  ],
+  "VPS — Intel Xeon E5":[
+    {name:"VPS Intel Xeon E5 — Small",desc:"2 vCPU · 4GB RAM · 25GB SSD · NVMe · DDoS Protected · India DC (Mumbai/Noida/Delhi) · Up to 5Gbps",price:750,tag:"VPS Xeon E5"},
+    {name:"VPS Intel Xeon E5 — Medium",desc:"4 vCPU · 8GB RAM · 50GB SSD · NVMe · DDoS Protected · India DC · Up to 5Gbps · Popular",price:870,tag:"VPS Xeon E5"},
+    {name:"VPS Intel Xeon E5 — Large",desc:"6 vCPU · 16GB RAM · 150GB SSD · NVMe · DDoS Protected · India DC · Up to 5Gbps",price:955,tag:"VPS Xeon E5"},
+    {name:"VPS Intel Xeon E5 — 2x Large",desc:"12 vCPU · 32GB RAM · 270GB SSD · NVMe · DDoS Protected · India DC · Up to 10Gbps",price:1245,tag:"VPS Xeon E5"},
+    {name:"VPS Intel Xeon E5 — 3x Large",desc:"16 vCPU · 48GB RAM · 482GB SSD · NVMe · DDoS Protected · India DC · Up to 10Gbps",price:1450,tag:"VPS Xeon E5"},
+    {name:"VPS Intel Xeon E5 — 4x Large",desc:"24 vCPU · 64GB RAM · 550GB SSD · NVMe · DDoS Protected · India DC · Up to 10Gbps",price:1669,tag:"VPS Xeon E5"},
+  ],
+  "VPS — Intel Xeon Platinum":[
+    {name:"VPS Xeon Platinum — Small",desc:"4 vCPU · 4GB RAM · 50GB SSD · NVMe · DDoS Protected · India DC (Mumbai/Noida/Delhi)",price:899,tag:"VPS Platinum"},
+    {name:"VPS Xeon Platinum — Medium",desc:"8 vCPU · 8GB RAM · 100GB SSD · NVMe · DDoS Protected · India DC",price:1049,tag:"VPS Platinum"},
+    {name:"VPS Xeon Platinum — Large",desc:"16 vCPU · 16GB RAM · 150GB SSD · NVMe · DDoS Protected · India DC",price:1199,tag:"VPS Platinum"},
+    {name:"VPS Xeon Platinum — 2x Large",desc:"24 vCPU · 32GB RAM · 270GB SSD · NVMe · DDoS Protected · India DC",price:1549,tag:"VPS Platinum"},
+    {name:"VPS Xeon Platinum — 3x Large",desc:"32 vCPU · 48GB RAM · 200GB SSD · NVMe · DDoS Protected · India DC",price:2399,tag:"VPS Platinum"},
+    {name:"VPS Xeon Platinum — 4x Large",desc:"32 vCPU · 64GB RAM · 402GB SSD · NVMe · DDoS Protected · India DC",price:2699,tag:"VPS Platinum"},
+  ],
+  "VPS — AMD EPYC":[
+    {name:"VPS AMD EPYC — Plan 1",desc:"4 vCPU · 16GB RAM · 150GB SSD · NVMe · DDoS Protected · India DC (Mumbai/Noida/Delhi)",price:1199,tag:"VPS EPYC"},
+    {name:"VPS AMD EPYC — Plan 2",desc:"8 vCPU · 32GB RAM · 270GB SSD · NVMe · DDoS Protected · India DC",price:2049,tag:"VPS EPYC"},
+    {name:"VPS AMD EPYC — Plan 3",desc:"12 vCPU · 48GB RAM · 270GB SSD · NVMe · DDoS Protected · India DC",price:3299,tag:"VPS EPYC"},
+    {name:"VPS AMD EPYC — Plan 4",desc:"16 vCPU · 64GB RAM · 270GB SSD · NVMe · DDoS Protected · India DC",price:4299,tag:"VPS EPYC"},
+  ],
+  "VPS — AMD Ryzen 9":[
+    {name:"VPS AMD Ryzen 9 — Small",desc:"2 vCPU · 4GB RAM · 25GB SSD · NVMe · DDoS Protected · India DC (Mumbai/Noida/Delhi)",price:1019,tag:"VPS Ryzen 9"},
+    {name:"VPS AMD Ryzen 9 — Medium",desc:"4 vCPU · 8GB RAM · 50GB SSD · NVMe · DDoS Protected · India DC",price:1259,tag:"VPS Ryzen 9"},
+    {name:"VPS AMD Ryzen 9 — Large",desc:"4 vCPU · 16GB RAM · 80GB SSD · NVMe · DDoS Protected · India DC",price:1979,tag:"VPS Ryzen 9"},
+    {name:"VPS AMD Ryzen 9 — 2x Large",desc:"8 vCPU · 32GB RAM · 78GB SSD · NVMe · DDoS Protected · India DC",price:3899,tag:"VPS Ryzen 9"},
+    {name:"VPS AMD Ryzen 9 — 3x Large",desc:"12 vCPU · 48GB RAM · 206GB SSD · NVMe · DDoS Protected · India DC",price:7499,tag:"VPS Ryzen 9"},
+    {name:"VPS AMD Ryzen 9 — 4x Large",desc:"16 vCPU · 64GB RAM · 402GB SSD · NVMe · DDoS Protected · India DC",price:12299,tag:"VPS Ryzen 9"},
+  ],
+  "Domain":[
+    {name:"Domain — .com",desc:".com domain registration · 1 year · 18% GST included",price:1169,tag:"Domain"},
+    {name:"Domain — .net",desc:".net domain registration · 1 year · 18% GST included",price:1347,tag:"Domain"},
+    {name:"Domain — .org",desc:".org domain registration · 1 year · 18% GST included",price:1111,tag:"Domain"},
+    {name:"Domain — .in",desc:".in domain registration · 1 year · 18% GST included",price:875,tag:"Domain"},
+    {name:"Domain — .online",desc:".online domain registration · 1 year · 18% GST included",price:285,tag:"Domain"},
+    {name:"Domain — .shop",desc:".shop domain registration · 1 year · 18% GST included",price:261,tag:"Domain"},
+    {name:"Domain — .xyz",desc:".xyz domain registration · 1 year · 18% GST included",price:320,tag:"Domain"},
+    {name:"Domain — .io",desc:".io domain registration · 1 year · 18% GST included",price:3825,tag:"Domain"},
+    {name:"Domain — .icu",desc:".icu domain registration · 1 year · 18% GST included",price:226,tag:"Domain"},
+    {name:"Domain — .pro",desc:".pro domain registration · 1 year · 18% GST included",price:403,tag:"Domain"},
+    {name:"Domain — .cloud",desc:".cloud domain registration · 1 year · 18% GST included",price:379,tag:"Domain"},
+    {name:"Domain — .site",desc:".site domain registration · 1 year · 18% GST included",price:261,tag:"Domain"},
+    {name:"Domain — .store",desc:".store domain registration · 1 year · 18% GST included",price:285,tag:"Domain"},
+    {name:"Domain — .tech",desc:".tech domain registration · 1 year · 18% GST included",price:757,tag:"Domain"},
+    {name:"Domain — .me",desc:".me domain registration · 1 year · 18% GST included",price:875,tag:"Domain"},
+    {name:"Domain — .fun",desc:".fun domain registration · 1 year · 18% GST included",price:226,tag:"Domain"},
+    {name:"Domain — .app",desc:".app domain registration · 1 year · 18% GST included",price:1179,tag:"Domain"},
+    {name:"Domain — .dev",desc:".dev domain registration · 1 year · 18% GST included",price:1061,tag:"Domain"},
+    {name:"Domain — .gg",desc:".gg domain registration · 1 year · 18% GST included",price:8259,tag:"Domain"},
+    {name:"Domain — .ai",desc:".ai domain registration · 1 year · 18% GST included",price:10619,tag:"Domain"},
+    {name:"Domain — .systems",desc:".systems domain registration · 1 year · 18% GST included",price:1887,tag:"Domain"},
+    {name:"Domain — .network",desc:".network domain registration · 1 year · 18% GST included",price:2123,tag:"Domain"},
+    {name:"Domain — .host",desc:".host domain registration · 1 year · 18% GST included",price:2949,tag:"Domain"},
+    {name:"Domain — .space",desc:".space domain registration · 1 year · 18% GST included",price:202,tag:"Domain"},
+    {name:"Domain — .sbs",desc:".sbs domain registration · 1 year · 18% GST included",price:202,tag:"Domain"},
+    {name:"Domain — .press",desc:".press domain registration · 1 year · 18% GST included",price:4719,tag:"Domain"},
+  ],
+};
+
+const CURRENCIES=[
+  {code:'INR',locale:'en-IN',label:'Indian Rupee'},
+  {code:'USD',locale:'en-US',label:'US Dollar'},
+  {code:'EUR',locale:'en-IE',label:'Euro'},
+  {code:'GBP',locale:'en-GB',label:'British Pound'},
+  {code:'SGD',locale:'en-SG',label:'Singapore Dollar'},
+  {code:'AUD',locale:'en-AU',label:'Australian Dollar'},
+  {code:'JPY',locale:'ja-JP',label:'Japanese Yen'},
+];
+let currency=CURRENCIES[0];
+
+const $=id=>document.getElementById(id);
+const num=v=>{const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:0};
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+function fmt(v){const n=isFinite(v)?v:0;try{return new Intl.NumberFormat(currency.locale,{style:'currency',currency:currency.code}).format(n)}catch(e){return currency.code+' '+n.toFixed(2)}}
+function fmtDate(v){if(!v)return '—';const d=new Date(v+'T00:00:00');if(isNaN(d))return '—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+
+/* ── Currency select ── */
+const curSel=$('currency');
+CURRENCIES.forEach(c=>{const o=document.createElement('option');o.value=c.code;o.textContent=c.code+' · '+c.label;curSel.appendChild(o)});
+curSel.value=currency.code;
+curSel.addEventListener('change',()=>{currency=CURRENCIES.find(c=>c.code===curSel.value)||currency;paint()});
+
+/* ── Plan picker ── */
+let activeCat=Object.keys(PLANS)[0];
+const planCatsEl=$('planCats');
+const planSelEl=$('planSel');
+
+function buildCats(){
+  planCatsEl.innerHTML='';
+  Object.keys(PLANS).forEach(cat=>{
+    const btn=document.createElement('button');
+    btn.className='pcat'+(cat===activeCat?' active':'');
+    btn.textContent=cat;
+    btn.addEventListener('click',()=>{activeCat=cat;buildCats();buildPlanSel()});
+    planCatsEl.appendChild(btn);
+  });
+}
+function buildPlanSel(){
+  planSelEl.innerHTML='';
+  (PLANS[activeCat]||[]).forEach((p,i)=>{
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent=p.name+' — ₹'+p.price+'/mo';
+    planSelEl.appendChild(o);
+  });
+}
+buildCats();buildPlanSel();
+$('planAddBtn').addEventListener('click',()=>{
+  const plans=PLANS[activeCat];
+  if(!plans||!plans.length)return;
+  const p=plans[parseInt(planSelEl.value)||0];
+  if(!p)return;
+  items.push({id:uid(),name:p.name,desc:p.desc,qty:1,rate:p.price,tag:p.tag});
+  buildRows();paint();
+  setTimeout(()=>$('rows').lastElementChild&&$('rows').lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'}),60);
+});
+
+/* ── Line items ── */
+let items=[
+  {id:uid(),name:'Bot Host — Starter Plan',desc:'512 MiB DDR4 3200MHz · 0.5 vCore 50% (3.70GHz) · 5 GiB NVMe SSD Gen-4',qty:1,rate:49,tag:'Bot Host'},
+];
+const rowsEl=$('rows');
+
+function buildRows(){
+  rowsEl.innerHTML='';
+  items.forEach(it=>{
+    const row=document.createElement('div');
+    row.className='row';row.dataset.id=it.id;
+    row.innerHTML=
+      '<div class="fld"><span class="mini">Service / plan name</span>'+
+        '<input class="input" data-k="name" value="'+esc(it.name)+'" placeholder="Plan name"></div>'+
+      '<div class="fld"><span class="mini">Description</span>'+
+        '<input class="input" data-k="desc" value="'+esc(it.desc)+'" placeholder="Specs / details"></div>'+
+      '<div class="qr">'+
+        '<div class="fld"><span class="mini">Months</span><input class="input mono" data-k="qty" inputmode="decimal" value="'+esc(it.qty)+'"></div>'+
+        '<div class="fld"><span class="mini">Price/month</span><input class="input mono" data-k="rate" inputmode="decimal" value="'+esc(it.rate)+'"></div>'+
+        '<button class="x" title="Remove" aria-label="Remove">&times;</button>'+
+      '</div>';
+    row.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('input',()=>{it[inp.dataset.k]=inp.value;paint()});
+    });
+    row.querySelector('.x').addEventListener('click',()=>removeRow(it.id,row));
+    rowsEl.appendChild(row);
+  });
+}
+
+function removeRow(id,rowEl){
+  if(items.length<=1){Object.assign(items[0],{name:'',desc:'',qty:1,rate:0});buildRows();paint();return}
+  rowEl.classList.add('removing');
+  setTimeout(()=>{items=items.filter(x=>x.id!==id);buildRows();paint()},220);
+}
+$('addRow').addEventListener('click',()=>{
+  items.push({id:uid(),name:'',desc:'',qty:1,rate:0,tag:''});
+  buildRows();paint();
+  rowsEl.lastElementChild&&rowsEl.lastElementChild.querySelector('input').focus();
+});
+
+/* ── Seed dates ── */
+(function(){
+  const t=new Date();const d=new Date();d.setDate(d.getDate()+30);
+  const iso=x=>x.toISOString().slice(0,10);
+  $('m_issue').value=iso(t);$('m_due').value=iso(d);
+  $('m_num').value='RYO-'+t.getFullYear()+'-'+Math.floor(1000+Math.random()*9000);
+})();
+
+/* ── Calc ── */
+function calc(){
+  const sub=items.reduce((s,it)=>s+num(it.qty)*num(it.rate),0);
+  const discPct=num($('s_disc').value);const discAmt=sub*discPct/100;
+  const afterDisc=sub-discAmt;
+  const taxPct=num($('s_tax').value);const taxAmt=afterDisc*taxPct/100;
+  const ship=num($('s_ship').value);
+  return{sub,discPct,discAmt,taxPct,taxAmt,ship,total:afterDisc+taxAmt+ship};
+}
+
+/* ── Paint ── */
+let lastTotal=null;
+function metaLine(parts){return parts.filter(Boolean).join('  ·  ')}
+
+function paint(){
+  const fn=$('f_name').value||'RyomenNodes';
+  $('o_name').innerHTML=brandName(fn);
+  $('o_fname').textContent=fn;
+  $('o_tag').textContent=$('f_tag').value;
+  $('o_faddr').textContent=$('f_addr').value;
+  $('o_fmeta').innerHTML=metaLine([
+    $('f_email').value&&'<b>'+esc($('f_email').value)+'</b>',
+    $('f_phone').value&&esc($('f_phone').value),
+    $('f_tax').value&&'GSTIN: '+esc($('f_tax').value),
+  ]);
+  $('o_cname').textContent=$('c_name').value||'—';
+  $('o_caddr').textContent=$('c_addr').value;
+  $('o_cmeta').innerHTML=metaLine([
+    $('c_email').value&&'<b>'+esc($('c_email').value)+'</b>',
+    $('c_tax').value&&'Discord ID: '+esc($('c_tax').value),
+  ]);
+  $('o_num').textContent='#'+($('m_num').value||'RYO');
+  $('o_issue').textContent=fmtDate($('m_issue').value);
+  $('o_due').textContent=fmtDate($('m_due').value);
+
+  const web=($('f_web').value||'').trim();
+  const a=$('o_web');a.textContent=web||'';a.href=web?(/^https?:/.test(web)?web:'https://'+web):'#';a.style.display=web?'':'none';
+
+  const tb=$('o_rows');tb.innerHTML='';
+  items.forEach(it=>{
+    const amt=num(it.qty)*num(it.rate);
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td><span class="it-name">'+( esc(it.name)||'&mdash;')+'</span>'+
+        (it.tag?'<span class="it-tag">'+esc(it.tag)+'</span>':'')+
+        (it.desc?'<span class="it-desc">'+esc(it.desc)+'</span>':'')+'</td>'+
+      '<td class="num">'+(num(it.qty)||0)+'</td>'+
+      '<td class="num">'+fmt(num(it.rate))+'</td>'+
+      '<td class="num">'+fmt(amt)+'</td>';
+    tb.appendChild(tr);
+  });
+
+  const t=calc();
+  $('o_sub').textContent=fmt(t.sub);
+  const dr=$('o_discRow');
+  if(t.discAmt>0){dr.classList.remove('hide');$('o_discL').textContent='Discount ('+( +t.discPct.toFixed(2))+'%)';$('o_disc').textContent='− '+fmt(t.discAmt)}else dr.classList.add('hide');
+  const tr2=$('o_taxRow');
+  if(t.taxPct>0){tr2.classList.remove('hide');$('o_taxL').textContent=($('s_taxlabel').value||'GST')+' ('+( +t.taxPct.toFixed(2))+'%)';$('o_tax').textContent=fmt(t.taxAmt)}else tr2.classList.add('hide');
+  const sr=$('o_shipRow');
+  if(t.ship>0){sr.classList.remove('hide');$('o_ship').textContent=fmt(t.ship)}else sr.classList.add('hide');
+
+  const paidAmt=status==='paid'?t.total:status==='partial'?num($('p_amount').value):0;
+  const balance=t.total-paidAmt;
+  const pr=$('o_paidRow');
+  if(status==='partial'){pr.classList.remove('hide');$('o_paid').textContent=fmt(paidAmt)}else pr.classList.add('hide');
+
+  const grand=$('o_grand');grand.classList.remove('is-paid');
+  if(status==='paid'){$('o_grandL').textContent='Total paid';$('o_total').textContent=fmt(t.total);grand.classList.add('is-paid')}
+  else if(status==='partial'){$('o_grandL').textContent='Balance due';$('o_total').textContent=fmt(balance)}
+  else{$('o_grandL').textContent='Total due';$('o_total').textContent=fmt(t.total)}
+
+  const badge=$('o_badge');badge.className='badge '+status;
+  $('o_badgeT').textContent=status==='paid'?'Paid':status==='partial'?'Partially paid':'Due';
+
+  const stamp=$('o_stamp');
+  if(status==='due'){stamp.classList.add('hide')}else{
+    stamp.className='stamp '+(status==='paid'?'paid':'partial');
+    $('o_stampBig').textContent=status==='paid'?'PAID':'PART PAID';
+    const sd=fmtDate($('p_date').value);$('o_stampSub').textContent=sd!=='—'?sd:'';
+  }
+
+  const pl=$('o_payline');
+  if(status==='due'){pl.classList.add('hide');pl.innerHTML=''}else{
+    const pp=[];
+    const pd=fmtDate($('p_date').value);if(pd!=='—')pp.push('Paid on '+esc(pd));
+    if($('p_method').value.trim())pp.push(esc($('p_method').value.trim()));
+    if($('p_ref').value.trim())pp.push('Ref '+esc($('p_ref').value.trim()));
+    pl.innerHTML=pp.join('&nbsp;&nbsp;·&nbsp;&nbsp;');pl.classList.toggle('hide',pp.length===0);
+  }
+
+  $('o_curnote').textContent='All amounts in '+currency.code+' ('+currency.label+')';
+
+  const notes=$('s_notes').value.trim();
+  $('o_notesWrap').style.display=notes?'':'none';
+  $('o_notes').textContent=notes;
+
+  if(lastTotal!==null&&lastTotal!==t.total){
+    const g=$('o_total');
+    g.animate([{transform:'scale(1)'},{transform:'scale(1.07)'},{transform:'scale(1)'}],{duration:360,easing:'cubic-bezier(.2,.7,.3,1)'});
+  }
+  lastTotal=t.total;
+}
+
+function brandName(v){
+  v=v||'RyomenNodes';
+  // highlight last word
+  const parts=v.split(/(?=[A-Z])/);
+  if(parts.length>1){
+    const last=parts.pop();return esc(parts.join(''))+' <span>'+esc(last)+'</span>';
+  }
+  return '<span>'+esc(v)+'</span>';
+}
+
+document.querySelectorAll('.console input,.console textarea').forEach(el=>{
+  if(el.closest('.row'))return;
+  el.addEventListener('input',paint);
+});
+
+/* ── Toast ── */
+let toastT;
+function toast(msg,warn){
+  const el=$('toast');$('toastMsg').textContent=msg;
+  el.classList.toggle('warn',!!warn);el.querySelector('.tick').textContent=warn?'!':'✓';
+  el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+/* ── PDF export ── */
+const pdfBtn=$('pdfBtn');
+pdfBtn.addEventListener('click',exportPDF);
+function setBtnBusy(busy){
+  const lbl=pdfBtn.querySelector('.lbl');const svg=pdfBtn.querySelector('svg');
+  pdfBtn.disabled=busy;
+  if(busy){pdfBtn.dataset.lbl=lbl.textContent;svg.classList.add('hide');if(!pdfBtn.querySelector('.spin-i')){const sp=document.createElement('span');sp.className='spin-i';pdfBtn.insertBefore(sp,lbl)}lbl.textContent='Generating…'}
+  else{const sp=pdfBtn.querySelector('.spin-i');if(sp)sp.remove();svg.classList.remove('hide');lbl.textContent=pdfBtn.dataset.lbl||'Download PDF'}
+}
+async function exportPDF(){
+  const fileName='RyomenNodes-Invoice-'+(($('m_num').value||'invoice').replace(/[^\w-]/g,'_'))+'.pdf';
+  const ready=(typeof window.html2canvas!=='undefined')&&window.jspdf&&window.jspdf.jsPDF;
+  if(!ready){toast('PDF engine offline — opening Print → Save as PDF',true);setTimeout(()=>window.print(),500);return}
+  setBtnBusy(true);$('overlay').classList.add('show');
+  const src=$('invoice');
+  const holder=document.createElement('div');holder.id='pdf-holder';
+  holder.style.cssText='position:fixed;left:0;top:0;z-index:1;background:#fff;width:794px;';
+  const clone=src.cloneNode(true);clone.style.width='794px';clone.style.borderRadius='0';clone.style.boxShadow='none';
+  holder.appendChild(clone);document.body.appendChild(holder);
+  try{
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const canvas=await html2canvas(clone,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,width:794,windowWidth:794,scrollX:0,scrollY:0});
+    if(!canvas||!canvas.width||!canvas.height)throw new Error('Empty canvas');
+    const imgData=canvas.toDataURL('image/jpeg',0.98);
+    const{jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const pw=pdf.internal.pageSize.getWidth();const ph=pdf.internal.pageSize.getHeight();
+    const imgH=canvas.height*pw/canvas.width;
+    let hl=imgH;let pos=0;
+    pdf.addImage(imgData,'JPEG',0,pos,pw,imgH,undefined,'FAST');hl-=ph;
+    while(hl>0.5){pos-=ph;pdf.addPage();pdf.addImage(imgData,'JPEG',0,pos,pw,imgH,undefined,'FAST');hl-=ph}
+    pdf.save(fileName);toast('Invoice PDF downloaded ✓');
+  }catch(err){console.error(err);toast('Couldn\'t render PDF — opening print dialog',true);setTimeout(()=>window.print(),400)}
+  finally{if(holder.parentNode)holder.parentNode.removeChild(holder);$('overlay').classList.remove('show');setBtnBusy(false)}
+}
+
+$('printBtn').addEventListener('click',()=>window.print());
+
+/* ── Payment status ── */
+let status='due';
+const seg=$('statusSeg');const glider=$('segGlider');const segBtns=seg.querySelectorAll('button');
+function moveGlider(){const a=seg.querySelector('button[aria-pressed="true"]');if(!a)return;glider.style.width=a.offsetWidth+'px';glider.style.transform='translateX('+a.offsetLeft+'px)'}
+segBtns.forEach(b=>{
+  b.addEventListener('click',()=>{
+    status=b.dataset.status;
+    segBtns.forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    moveGlider();
+    const open=status!=='due';$('payExtra').classList.toggle('open',open);
+    $('paidAmtFld').classList.toggle('hide',status!=='partial');
+    if(open&&!$('p_date').value)$('p_date').value=new Date().toISOString().slice(0,10);
+    paint();
+  });
+});
+window.addEventListener('resize',moveGlider);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(moveGlider);
+
+/* ── Init ── */
+buildRows();paint();requestAnimationFrame(moveGlider);
+})();
+</script>
+</body>
+</html>
